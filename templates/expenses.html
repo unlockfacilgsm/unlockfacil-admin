@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Despesas{% endblock %}
+{% block heading %}Despesas{% endblock %}
+{% block content %}
+<div class="page-intro"><p>Registre custos operacionais. Cadastre os gastos com anúncios na seção Anúncios para evitar duplicidade no cálculo.</p></div>
+<section class="panel"><div class="panel-heading"><h2>Nova despesa</h2></div>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Categoria<select name="category" required>{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select></label>
+<label>Descrição<input name="description" required maxlength="180"></label>
+<label>Valor (R$)<input name="amount" inputmode="decimal" required maxlength="24" placeholder="0,00"></label>
+<label>Data<input type="date" name="spent_on" required value="{{ today|default('') }}"></label>
+<div class="form-actions"><button class="button button-primary" type="submit">Registrar despesa</button></div></form></section>
+<div class="section-head"><div><h2>Despesas recentes</h2></div></div>
+<div class="table-wrap"><table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>{% for e in expenses %}<tr><td>{{ e.spent_on }}</td><td>{{ e.category }}</td><td>{{ e.description }}</td><td>{{ money(e.amount_cents) }}</td></tr>{% else %}<tr><td colspan="4" class="empty">Nenhuma despesa cadastrada.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

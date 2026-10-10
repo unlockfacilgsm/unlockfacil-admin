@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Vendas{% endblock %}
+{% block heading %}Vendas{% endblock %}
+{% block content %}
+<div class="page-intro"><p>O telefone identifica o cliente automaticamente. Cada venda é registrada como paga e o Pix já vem selecionado.</p></div>
+<section class="panel"><div class="panel-heading"><h2>Registrar venda</h2><span class="tag">Cadastro automático pelo telefone</span></div>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Ferramenta<select name="tool" id="tool" required>{% for tool,plans in tools.items() %}<option value="{{ tool }}">{{ tool }}</option>{% endfor %}</select></label>
+<label>Plano<select name="plan" id="plan" required></select></label>
+<label>Valor recebido (R$)<input name="amount" inputmode="decimal" placeholder="0,00" required maxlength="24"></label>
+<label>Data da venda<input type="date" name="sold_on" value="{{ today|default('') }}" required></label>
+<label>Telefone do cliente<input name="phone" inputmode="tel" autocomplete="tel" placeholder="DDD + número" required minlength="8" maxlength="20"></label>
+<label>Pagamento<select name="payment_method" required>{% for payment in payments %}<option {% if payment == 'Pix' %}selected{% endif %}>{{ payment }}</option>{% endfor %}</select></label>
+<label>Login/conta entregue<input name="account_login" required maxlength="180" placeholder="Usuário ou e-mail da conta"></label>
+<label>Senha da conta<input name="account_password" required maxlength="180" placeholder="Senha entregue ao cliente"></label>
+<div class="form-actions"><button class="button button-primary" type="submit">Salvar venda paga</button></div></form></section>
+<div class="section-head"><div><h2>Histórico de vendas</h2><p>Pesquise por telefone para ver as compras de um cliente.</p></div></div>
+<form method="get" class="search-bar"><input name="telefone" value="{{ search_phone }}" inputmode="tel" placeholder="Buscar telefone"><button class="button button-primary" type="submit">Buscar</button><a class="button button-ghost" href="{{ url_for('sales_page') }}">Limpar</a></form>
+<div class="table-wrap"><table><thead><tr><th>Data</th><th>Telefone</th><th>Ferramenta</th><th>Plano</th><th>Valor</th><th>Pagamento</th><th>Vencimento</th><th>Conta</th><th>Ação</th></tr></thead><tbody>
+{% for sale in sales %}<tr><td>{{ sale.sold_on }}</td><td>{{ sale.customer_phone }}</td><td>{{ sale.tool }}</td><td>{{ sale.plan }}</td><td>{{ money(sale.amount_cents) }}</td><td>{{ sale.payment_method }}</td><td>{{ sale.expires_at[:16].replace('T',' ') if sale.expires_at else '—' }}</td><td><details><summary>Ver dados</summary><div class="account-details"><div><b>Login:</b> {{ sale.account_login or '—' }}</div><div><b>Senha:</b> {{ sale.account_password or '—' }}</div></div></details></td><td>{% if sale.status != 'Cancelado' %}<form method="post" action="{{ url_for('cancel_sale', sale_id=sale.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-small button-ghost" type="submit">Cancelar</button></form>{% else %}Cancelada{% endif %}</td></tr>
+{% else %}<tr><td colspan="9" class="empty">Nenhuma venda encontrada.</td></tr>{% endfor %}
+</tbody></table></div>
+<script src="{{ url_for('static', filename='sales-form.js') }}" defer></script><script type="application/json" id="plans-data">{{ tools|tojson }}</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Vencimentos<script src="{{ url_for('static', filename='expirations.js') }}" defer></script>
+{% endblock %}
+{% block heading %}Vencimentos<script src="{{ url_for('static', filename='expirations.js') }}" defer></script>
+{% endblock %}
+{% block content %}
+<div class="page-intro"><p>Contas cujo período de acesso já terminou. Os dados da conta ficam organizados por ferramenta para facilitar a cópia.</p></div>
+<div class="metric-grid"><article class="metric metric-highlight"><span>Contas vencidas</span><strong>{{ expired|length }}</strong><small>Inclui telefone, login e senha</small></article></div>
+<div class="section-head"><div><h2>Contas vencidas para copiar</h2><p>Formato: login:senha, agrupado por ferramenta.</p></div><button class="button button-primary" id="copy-expired" type="button">Copiar lista</button></div>
+<div class="panel" id="expired-text">{% for tool,items in grouped.items() %}<h2>{{ tool }}:</h2><pre>{% for sale in items %}{{ sale.account_login }}:{{ sale.account_password }}
+{% endfor %}</pre>{% else %}<p class="muted">Ainda não há contas vencidas.</p>{% endfor %}</div>
+<div class="section-head"><div><h2>Detalhes</h2></div></div><div class="table-wrap"><table><thead><tr><th>Telefone</th><th>Ferramenta</th><th>Plano</th><th>Conta</th><th>Senha</th><th>Venceu em</th></tr></thead><tbody>{% for sale in expired %}<tr><td>{{ sale.customer_phone or '—' }}</td><td>{{ sale.tool }}</td><td>{{ sale.plan }}</td><td>{{ sale.account_login }}</td><td>{{ sale.account_password }}</td><td>{{ sale.expires_at[:16].replace('T',' ') }}</td></tr>{% else %}<tr><td colspan="6" class="empty">Nenhuma conta vencida.</td></tr>{% endfor %}</tbody></table></div>
+<script src="{{ url_for('static', filename='expirations.js') }}" defer></script>
+{% endblock %}

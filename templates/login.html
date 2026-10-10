@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block auth_content %}
+<section class="login-card">
+  <span class="eyebrow">ACESSO RESTRITO</span>
+  <h1>Entrar no painel</h1>
+  <p class="muted">Informe o código de 6 dígitos do autenticador configurado no servidor.</p>
+  {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('admin_login') }}" class="form-stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Código do autenticador<input name="totp_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required autofocus></label>
+    <button class="button button-primary button-full" type="submit">Entrar</button>
+  </form>
+</section>
+{% endblock %}

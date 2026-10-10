@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Visão geral{% endblock %}
+{% block heading %}Visão geral financeira{% endblock %}
+{% block content %}
+<div class="page-intro"><p>Visão de {{ month_start[5:7] }}/{{ month_start[:4] }} até {{ today }}. Os cálculos usam apenas vendas registradas como pagas.</p><a class="button button-primary" href="{{ url_for('sales_page') }}">＋ Registrar venda</a></div>
+<div class="metric-grid">
+  <article class="metric metric-highlight"><span>Faturamento do mês</span><strong>{{ money(revenue) }}</strong><small>{{ count }} venda(s) neste mês</small></article>
+  <article class="metric"><span>Lucro estimado no mês</span><strong>{{ money(net) }}</strong><small>Faturamento − despesas − anúncios</small></article>
+  <article class="metric"><span>Faturamento total</span><strong>{{ money(all_revenue) }}</strong><small>Desde o primeiro registro</small></article>
+  <article class="metric"><span>Lucro estimado total</span><strong>{{ money(all_net) }}</strong><small>Despesas: {{ money(all_expenses) }} · anúncios: {{ money(all_ads) }}</small></article>
+  <article class="metric"><span>Despesas neste mês</span><strong>{{ money(expenses) }}</strong><small>Custos operacionais</small></article>
+  <article class="metric"><span>Anúncios neste mês</span><strong>{{ money(ads) }}</strong><small>Investimento registrado</small></article>
+</div>
+<div class="section-head"><div><h2>Comparativo mensal</h2><p>Faturamento e quantidade de vendas pagas.</p></div></div>
+<div class="metric-grid">
+  <article class="metric"><span>Mês anterior</span><strong>{{ money(prev_revenue) }}</strong><small>{{ previous_count }} venda(s) pagas</small></article>
+  <article class="metric"><span>Variação de faturamento</span><strong>{% if prev_revenue %}{{ '%+.1f'|format((revenue-prev_revenue)*100/prev_revenue) }}%{% elif revenue %}Novo{% else %}0%{% endif %}</strong><small>Comparação com o mesmo período do mês anterior</small></article>
+</div>
+<div class="section-head"><div><h2>Vendas por ferramenta — mês atual</h2><p>Quantidade e receita de cada ferramenta.</p></div></div>
+<div class="table-wrap"><table><thead><tr><th>Ferramenta</th><th>Vendas</th><th>Faturamento</th><th>Participação</th></tr></thead><tbody>
+{% for item in month_by_tool %}<tr><td>{{ item.tool }}</td><td>{{ item.count }}</td><td>{{ money(item.revenue) }}</td><td>{% if revenue %}{{ '%.1f'|format(item.revenue*100/revenue) }}%{% else %}0%{% endif %}</td></tr>{% else %}<tr><td colspan="4" class="empty">Ainda não há vendas neste mês.</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="section-head"><div><h2>Movimento diário — últimos 30 dias</h2><p>Somente dias com venda paga registrada.</p></div></div>
+<div class="table-wrap"><table><thead><tr><th>Dia</th><th>Vendas</th><th>Faturamento</th><th>Despesas</th><th>Anúncios</th><th>Resultado do dia</th></tr></thead><tbody>{% for d in daily %}<tr><td>{{ d.day }}</td><td>{{ d.count }}</td><td>{{ money(d.revenue) }}</td><td>{{ money(d.expenses) }}</td><td>{{ money(d.ads) }}</td><td>{{ money(d.revenue-d.expenses-d.ads) }}</td></tr>{% else %}<tr><td colspan="6" class="empty">Nenhuma movimentação no período.</td></tr>{% endfor %}</tbody></table></div>
+<div class="section-head"><div><h2>Vendas por ferramenta — histórico completo</h2></div></div>
+<div class="table-wrap"><table><thead><tr><th>Ferramenta</th><th>Vendas pagas</th><th>Faturamento acumulado</th></tr></thead><tbody>{% for item in by_tool %}<tr><td>{{ item.tool }}</td><td>{{ item.count }}</td><td>{{ money(item.revenue) }}</td></tr>{% else %}<tr><td colspan="3" class="empty">Ainda não há vendas.</td></tr>{% endfor %}</tbody></table></div>
+<div class="section-head"><div><h2>Catálogo atual</h2><p>Preços que serão sugeridos ao registrar novas vendas.</p></div><a class="text-link" href="{{ url_for('catalog_page') }}">Editar catálogo →</a></div>
+<div class="table-wrap"><table><thead><tr><th>Ferramenta</th><th>Plano</th><th>Preço atual</th><th>Duração</th></tr></thead><tbody>{% for tool,items in plans.items() %}{% for plan,info in items.items() %}<tr><td>{{ tool }}</td><td>{{ plan }}</td><td>{{ money(info.amount_cents) }}</td><td>{% if info.duration_hours < 24 %}{{ info.duration_hours }} hora(s){% elif info.duration_hours % 24 == 0 %}{{ info.duration_hours // 24 }} dia(s){% else %}{{ info.duration_hours }} horas{% endif %}</td></tr>{% endfor %}{% endfor %}</tbody></table></div>
+<div class="section-head"><div><h2>Vendas recentes</h2><p>Últimos 12 registros.</p></div><a class="text-link" href="{{ url_for('sales_page') }}">Ver histórico completo →</a></div>
+<div class="table-wrap"><table><thead><tr><th>Data</th><th>Telefone</th><th>Ferramenta</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for sale in recent %}<tr><td>{{ sale.sold_on }}</td><td>{{ sale.customer_phone }}</td><td>{{ sale.tool }}</td><td>{{ sale.plan }}</td><td>{{ money(sale.amount_cents) }}</td><td><span class="pill {{ sale.status|lower }}">{{ sale.status }}</span></td></tr>{% else %}<tr><td colspan="6" class="empty">Ainda não há vendas cadastradas.</td></tr>{% endfor %}</tbody></table></div>
+<p class="hint">O lucro é estimado com base nos dados cadastrados; não inclui custos que ainda não foram registrados nem taxas automáticas.</p>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Anúncios{% endblock %}
+{% block heading %}Investimento em anúncios{% endblock %}
+{% block content %}
+<div class="page-intro"><p>Registre gastos de mídia para comparar investimento com vendas. A atribuição por campanha é manual nesta primeira versão.</p></div>
+<section class="panel"><div class="panel-heading"><h2>Registrar investimento</h2></div>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<form method="post" class="form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Plataforma<select name="platform" required>{% for p in platforms %}<option>{{ p }}</option>{% endfor %}</select></label>
+<label>Campanha (opcional)<input name="campaign" maxlength="120" placeholder="Nome ou identificador da campanha"></label>
+<label>Valor gasto (R$)<input name="amount" inputmode="decimal" required maxlength="24" placeholder="0,00"></label>
+<label>Data<input type="date" name="spent_on" required value="{{ today|default('') }}"></label>
+<div class="form-actions"><button class="button button-primary" type="submit">Registrar gasto</button></div></form></section>
+<div class="section-head"><div><h2>Investimentos recentes</h2></div></div>
+<div class="table-wrap"><table><thead><tr><th>Data</th><th>Plataforma</th><th>Campanha</th><th>Valor</th></tr></thead><tbody>{% for a in ads %}<tr><td>{{ a.spent_on }}</td><td>{{ a.platform }}</td><td>{{ a.campaign or '—' }}</td><td>{{ money(a.amount_cents) }}</td></tr>{% else %}<tr><td colspan="4" class="empty">Nenhum investimento cadastrado.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

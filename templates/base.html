@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>{% block title %}Painel administrativo{% endblock %} · Unlock Fácil</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+{% if username %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="{{ url_for('dashboard') }}"><span class="brand-mark">UF</span><span><strong>Unlock Fácil</strong><small>ADMINISTRAÇÃO</small></span></a>
+    <nav class="nav" aria-label="Menu administrativo">
+      <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Visão geral</a>
+      <a href="{{ url_for('sales_page') }}" class="{% if request.endpoint in ['sales_page','cancel_sale'] %}active{% endif %}">Vendas</a>
+      <a href="{{ url_for('customers_page') }}" class="{% if request.endpoint == 'customers_page' %}active{% endif %}">Clientes</a>
+      <a href="{{ url_for('expirations_page') }}" class="{% if request.endpoint == 'expirations_page' %}active{% endif %}">Vencimentos</a>
+      <a href="{{ url_for('catalog_page') }}" class="{% if request.endpoint == 'catalog_page' %}active{% endif %}">Catálogo</a>
+      <a href="{{ url_for('expenses_page') }}" class="{% if request.endpoint == 'expenses_page' %}active{% endif %}">Despesas</a>
+      <a href="{{ url_for('ads_page') }}" class="{% if request.endpoint == 'ads_page' %}active{% endif %}">Anúncios</a>
+    </nav>
+    <div class="sidebar-foot"><span class="status-dot"></span> Sessão administrativa</div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><span class="eyebrow">PAINEL PRIVADO</span><h1>{% block heading %}Visão geral{% endblock %}</h1></div>
+      <form action="{{ url_for('admin_logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-ghost" type="submit">Sair</button></form>
+    </header>
+    <section class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="flash-list">{% for category,message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+      <footer class="footer">Unlock Fácil · Área administrativa privada</footer>
+    </section>
+  </main>
+</div>
+{% else %}
+<main class="auth-shell">
+  <a class="brand auth-brand" href="/"><span class="brand-mark">UF</span><span><strong>Unlock Fácil</strong><small>ÁREA ADMINISTRATIVA</small></span></a>
+  {% block auth_content %}{% endblock %}
+  <p class="auth-note">Acesso restrito. Todas as tentativas de autenticação são limitadas.</p>
+</main>
+{% endif %}
+</body>
+</html>

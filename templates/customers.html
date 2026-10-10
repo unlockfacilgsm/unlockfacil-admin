@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block heading %}Clientes e histórico de compras{% endblock %}
+{% block content %}
+<div class="page-intro"><p>Não é necessário cadastrar clientes manualmente: eles são criados ao registrar uma venda usando o telefone.</p></div>
+<form method="get" class="search-bar"><input name="telefone" value="{{ search_phone }}" inputmode="tel" placeholder="Digite o telefone do cliente"><button class="button button-primary" type="submit">Consultar histórico</button><a class="button button-ghost" href="{{ url_for('customers_page') }}">Limpar</a></form>
+<div class="section-head"><div><h2>Clientes registrados</h2><p>Contagem e total das compras pagas.</p></div></div>
+<div class="table-wrap"><table><thead><tr><th>Telefone</th><th>Compras</th><th>Total pago</th><th>Última compra</th></tr></thead><tbody>{% for c in customers %}<tr><td>{{ c.phone or '—' }}</td><td>{{ c.sales_count }}</td><td>{{ money(c.paid_total) }}</td><td>{{ c.last_sale or '—' }}</td></tr>{% else %}<tr><td colspan="4" class="empty">Nenhum cliente encontrado.</td></tr>{% endfor %}</tbody></table></div>
+{% if search_phone %}<div class="section-head"><div><h2>Histórico do telefone {{ search_phone }}</h2></div></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Ferramenta</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Conta</th></tr></thead><tbody>{% for sale in history %}<tr><td>{{ sale.sold_on }}</td><td>{{ sale.tool }}</td><td>{{ sale.plan }}</td><td>{{ money(sale.amount_cents) }}</td><td>{{ sale.expires_at[:16].replace('T',' ') if sale.expires_at else '—' }}</td><td>{{ sale.account_login or '—' }}</td></tr>{% else %}<tr><td colspan="6" class="empty">Nenhuma compra encontrada para esse telefone.</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% endblock %}

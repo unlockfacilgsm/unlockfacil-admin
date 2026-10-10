@@ -1,0 +1,21 @@
+# Exemplo de integração para uma VPS Nginx que já serve o site estático.
+# Inclua estes locations DENTRO do server HTTPS existente, depois de confirmar
+# o document root e o certificado atuais. Não substitua a configuração do site inteira.
+location = /admin {
+    proxy_pass http://127.0.0.1:8000/admin;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 30s;
+}
+location ^~ /admin/ {
+    proxy_pass http://127.0.0.1:8000/admin/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 30s;
+}
