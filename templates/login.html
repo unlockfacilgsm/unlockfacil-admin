@@ -4,11 +4,12 @@
 <section class="login-card">
   <span class="eyebrow">ACESSO RESTRITO</span>
   <h1>Entrar no painel</h1>
-  <p class="muted">Informe o código de 6 dígitos do autenticador configurado no servidor.</p>
+  <p class="muted">Entre com seu usuário e senha administrativa.</p>
   {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
   <form method="post" action="{{ url_for('admin_login') }}" class="form-stack">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label>Código do autenticador<input name="totp_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required autofocus></label>
+    <label>Usuário<input name="username" autocomplete="username" maxlength="120" required autofocus></label>
+    <label>Senha<input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label>
     <button class="button button-primary button-full" type="submit">Entrar</button>
   </form>
 </section>

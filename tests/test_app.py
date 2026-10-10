@@ -1,5 +1,4 @@
 import re
-import pyotp
 from app import create_app
 
 def csrf_from(html):
@@ -12,7 +11,8 @@ def login(client, username="owner", password="a-very-long-test-password-123"):
     token = csrf_from(response.get_data(as_text=True))
     return client.post("/admin/login", data={
         "csrf_token": token,
-        "totp_code": pyotp.TOTP("JBSWY3DPEHPK3PXP").now()
+        "username": username,
+        "password": password,
     }, follow_redirects=True)
 
 def make_app(tmp_path):
@@ -20,7 +20,7 @@ def make_app(tmp_path):
         "TESTING": True,
         "DATABASE_PATH": str(tmp_path / "test.sqlite3"),
         "ADMIN_USERNAME": "owner",
-        "ADMIN_TOTP_SECRET": "JBSWY3DPEHPK3PXP",
+        "ADMIN_PASSWORD": "a-very-long-test-password-123",
         "COOKIE_SECURE": False,
     })
 
@@ -45,11 +45,11 @@ def test_login_csrf_and_logout_revokes_session(tmp_path):
     assert out.status_code == 302
     assert client.get("/admin").status_code == 302
 
-def test_wrong_totp_does_not_authenticate(tmp_path):
+def test_wrong_password_does_not_authenticate(tmp_path):
     app = make_app(tmp_path)
     client = app.test_client()
     page = client.get("/admin/login")
-    response = client.post("/admin/login", data={"csrf_token": csrf_from(page.get_data(as_text=True)), "totp_code": "000000"})
+    response = client.post("/admin/login", data={"csrf_token": csrf_from(page.get_data(as_text=True)), "username": "owner", "password": "wrong-password"})
     assert response.status_code == 401
     assert client.get("/admin").status_code == 302
 
@@ -93,7 +93,7 @@ def test_csrf_is_required_for_write_operations(tmp_path):
     assert response.status_code == 400
 
 
-def test_totp_is_required(tmp_path):
+def test_username_and_password_are_required(tmp_path):
     app = make_app(tmp_path)
     client = app.test_client()
     page = client.get("/admin/login")
@@ -101,8 +101,7 @@ def test_totp_is_required(tmp_path):
     response = client.post("/admin/login", data={
         "csrf_token": token,
         "username": "owner",
-        "password": "a-very-long-test-password-123",
-        "totp_code": "abcdef",
+        "password": "wrong-password",
     })
     assert response.status_code == 401
     assert client.get("/admin").status_code == 302

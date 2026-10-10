@@ -10,16 +10,12 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from functools import wraps
 from pathlib import Path
 
-from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-import pyotp
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import (
-    Flask, abort, flash, g, redirect, render_template, request, url_for, current_app
+    Flask, abort, g, redirect, render_template, request, url_for, current_app
 )
 
 APP_DIR = Path(__file__).resolve().parent
-PASSWORD_HASHER = PasswordHasher()
 VALID_TOOLS = {
     "Unlock Tool": {"12 horas": 2000, "3 meses": 6000, "6 meses": 9000},
     "TSM Tool": {"12 horas": 2500},
@@ -305,8 +301,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.update(
         DATABASE_PATH=os.environ.get("DATABASE_PATH", str(APP_DIR / "instance" / "unlockfacil.sqlite3")),
         ADMIN_USERNAME=os.environ.get("ADMIN_USERNAME", ""),
-        ADMIN_PASSWORD_HASH=os.environ.get("ADMIN_PASSWORD_HASH", ""),
-        ADMIN_TOTP_SECRET=os.environ.get("ADMIN_TOTP_SECRET", ""),
+        ADMIN_PASSWORD=os.environ.get("ADMIN_PASSWORD", ""),
         COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "true").lower() == "true",
         TRUST_PROXY=os.environ.get("TRUST_PROXY", "false").lower() == "true",
         SESSION_TTL_SECONDS=SESSION_TTL_SECONDS,
@@ -315,8 +310,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     )
     if test_config:
         app.config.update(test_config)
-    if not app.config["TESTING"] and not app.config["ADMIN_TOTP_SECRET"]:
-        raise RuntimeError("Configure ADMIN_TOTP_SECRET antes de iniciar o painel.")
+    if not app.config["TESTING"] and (not app.config["ADMIN_USERNAME"] or not app.config["ADMIN_PASSWORD"]):
+        raise RuntimeError("Configure ADMIN_USERNAME e ADMIN_PASSWORD antes de iniciar o painel.")
 
     # Trust exactly one reverse proxy only when explicitly enabled and the app is loopback-only.
     if app.config["TRUST_PROXY"]:
@@ -416,9 +411,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         if request.method == "GET":
             return render_page("login.html")
         require_csrf()
-        totp_code = request.form.get("totp_code", "")
-        if len(totp_code) > 12:
-            abort(400)
+        username = request.form.get("username", "")[:120]
+        password = request.form.get("password", "")[:1024]
         db = get_db()
         ip = get_client_ip()
         recent = db.execute(
@@ -429,10 +423,13 @@ def create_app(test_config: dict | None = None) -> Flask:
             return render_page("login.html", error="Não foi possível entrar. Aguarde alguns minutos e tente novamente."), 429
         db.execute("INSERT INTO login_attempts(ip_address, attempted_at) VALUES(?,?)", (ip, iso_now()))
         db.commit()
-        totp_ok = pyotp.TOTP(app.config["ADMIN_TOTP_SECRET"]).verify(totp_code, valid_window=1) if totp_code.isdigit() and len(totp_code) == 6 else False
-        if not totp_ok:
+        credentials_ok = (
+            hmac.compare_digest(username, app.config["ADMIN_USERNAME"])
+            and hmac.compare_digest(password, app.config["ADMIN_PASSWORD"])
+        )
+        if not credentials_ok:
             audit("login_failed", "authentication", None)
-            return render_page("login.html", error="Não foi possível entrar. Confira os dados e tente novamente."), 401
+            return render_page("login.html", error="Login ou senha incorretos. Tente novamente."), 401
         # Rotate the session identifier on authentication to prevent fixation.
         db.execute("DELETE FROM admin_sessions WHERE token_hash = ?", (session["token_hash"],))
         new_token, _csrf = create_session(db, "admin")
@@ -508,7 +505,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             created=iso_now(); hours=plans[tool][plan]["duration_hours"]; expires=expiry_for(created,hours)
             cur=db.execute("INSERT INTO sales(customer_id,tool,plan,amount_cents,payment_method,status,sold_on,created_at,account_login,account_password,expires_at,duration_hours) VALUES(?,?,?,?,?,'Pago',?,?,?,?,?,?)",
                 (customer_id,tool,plan,amount,payment,sold_on,created,login_name,account_password,expires,hours))
-            db.commit(); audit("sale_created","sale",cur.lastrowid); flash("Venda paga registrada com sucesso.","success"); return redirect(url_for("sales_page"))
+            db.commit(); audit("sale_created","sale",cur.lastrowid); return redirect(url_for("sales_page"))
         query_phone=normalize_phone(request.args.get("telefone",""))
         if query_phone:
             sales=db.execute("SELECT s.*,COALESCE(NULLIF(c.phone,''),NULLIF(c.contact,''),c.name,'—') customer_phone FROM sales s LEFT JOIN customers c ON c.id=s.customer_id WHERE c.phone LIKE ? OR c.contact LIKE ? ORDER BY s.sold_on DESC,s.id DESC LIMIT 500",(f"%{query_phone}%",f"%{query_phone}%")).fetchall()
@@ -526,7 +523,6 @@ def create_app(test_config: dict | None = None) -> Flask:
             abort(404)
         db.commit()
         audit("sale_cancelled", "sale", sale_id)
-        flash("Venda marcada como cancelada. O registro foi preservado.", "success")
         return redirect(url_for("sales_page"))
 
     @app.route("/admin/clientes", methods=["GET"])
@@ -562,7 +558,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 except (ValueError,TypeError): abort(400,description='Informe preço e duração válidos.')
                 if hours<1 or hours>87600: abort(400,description='A duração deve ficar entre 1 hora e 10 anos.')
                 db.execute("INSERT INTO product_plans(tool,plan,amount_cents,duration_hours,active) VALUES(?,?,?,?,1) ON CONFLICT(tool,plan) DO UPDATE SET amount_cents=excluded.amount_cents,duration_hours=excluded.duration_hours,active=1",(tool,plan,amount,hours))
-            db.commit(); audit('catalog_updated','product_plan',None); flash('Catálogo atualizado. Novas vendas usarão esses valores e durações.','success'); return redirect(url_for('catalog_page'))
+            db.commit(); audit('catalog_updated','product_plan',None); return redirect(url_for('catalog_page'))
         products=db.execute('SELECT * FROM product_plans ORDER BY tool,id').fetchall()
         return render_page('catalog.html',products=products)
 
@@ -585,7 +581,6 @@ def create_app(test_config: dict | None = None) -> Flask:
                              (category, description, amount, spent_on, iso_now()))
             db.commit()
             audit("expense_created", "expense", cur.lastrowid)
-            flash("Despesa registrada.", "success")
             return redirect(url_for("expenses_page"))
         expenses = db.execute("SELECT * FROM expenses ORDER BY spent_on DESC,id DESC LIMIT 200").fetchall()
         return render_page("expenses.html", expenses=expenses, categories=VALID_EXPENSE_CATEGORIES, today=date.today().isoformat())
@@ -609,7 +604,6 @@ def create_app(test_config: dict | None = None) -> Flask:
                              (platform, campaign, amount, spent_on, iso_now()))
             db.commit()
             audit("ad_spend_created", "ad_spend", cur.lastrowid)
-            flash("Investimento em anúncios registrado.", "success")
             return redirect(url_for("ads_page"))
         ads = db.execute("SELECT * FROM ad_spend ORDER BY spent_on DESC,id DESC LIMIT 200").fetchall()
         return render_page("ads.html", ads=ads, platforms=VALID_AD_PLATFORMS, today=date.today().isoformat())
@@ -624,9 +618,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     return app
 
 
-app = create_app() if os.environ.get("ADMIN_TOTP_SECRET") else None
+app = create_app() if os.environ.get("ADMIN_USERNAME") and os.environ.get("ADMIN_PASSWORD") else None
 
 if __name__ == "__main__":
     if app is None:
-        raise SystemExit("Configure ADMIN_TOTP_SECRET. Consulte README.md.")
+        raise SystemExit("Configure ADMIN_USERNAME e ADMIN_PASSWORD. Consulte README.md.")
     app.run(host="127.0.0.1", port=8000, debug=False)

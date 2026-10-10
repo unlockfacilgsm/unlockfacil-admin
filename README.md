@@ -31,16 +31,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Configure o código do autenticador. Gere uma chave TOTP e adicione-a a um aplicativo autenticador:
+Configure um usuário e uma senha no terminal antes de iniciar. Use uma senha própria e não publique as credenciais:
 
 ```bash
-python scripts/generate_totp_secret.py
-```
-
-Guarde a chave gerada fora do repositório e configure-a no terminal antes de iniciar. Para testar em HTTP na rede local:
-
-```bash
-export ADMIN_TOTP_SECRET='COLE_A_CHAVE_DO_AUTENTICADOR'
+export ADMIN_USERNAME='admin'
+export ADMIN_PASSWORD='escolha-uma-senha-forte'
 export COOKIE_SECURE=false
 export DATABASE_PATH="$PWD/instance/unlockfacil.sqlite3"
 mkdir -p instance
@@ -53,7 +48,7 @@ O terminal precisa permanecer ativo enquanto o servidor estiver rodando. Não co
 
 ## Login
 
-O login usa o código temporário de 6 dígitos do aplicativo autenticador. O servidor precisa da chave-semente correspondente em `ADMIN_TOTP_SECRET`. Não publique essa chave no GitHub nem envie junto com o ZIP.
+O acesso usa somente `ADMIN_USERNAME` e `ADMIN_PASSWORD`, definidos no ambiente antes de iniciar o servidor. A sessão administrativa é mantida no banco SQLite. Não coloque credenciais reais no GitHub nem compartilhe o terminal com pessoas não autorizadas.
 
 ## GitHub separado do site
 
