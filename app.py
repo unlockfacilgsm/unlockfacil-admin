@@ -181,6 +181,33 @@ def init_db(app: Flask) -> None:
             if column not in columns:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_phone_unique ON customers(phone) WHERE phone != ''")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS password_change_pending (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tool TEXT NOT NULL,
+                account_login TEXT NOT NULL,
+                account_password TEXT NOT NULL,
+                changed INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                changed_at TEXT NOT NULL DEFAULT ''
+            )
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_password_pending_unique
+            ON password_change_pending(tool, account_login, account_password)
+        """)
+        initial_pending = [
+            ("Unlock Tool", "Thaivanna168", "ufclientes123"),
+            ("Unlock Tool", "mrr.clinton", "clientesuf123"),
+            ("TSM Tool", "angelofilipecorreia@hotmail.com", "Angeloc69..?"),
+        ]
+        for tool_name, login_name, password in initial_pending:
+            conn.execute("""
+                INSERT OR IGNORE INTO password_change_pending
+                (tool, account_login, account_password, changed, created_at)
+                VALUES (?, ?, ?, 0, ?)
+            """, (tool_name, login_name, password, utcnow().isoformat()))
+
         defaults = [("Unlock Tool","12 horas",1200,12),("Unlock Tool","3 meses",6000,2160),("Unlock Tool","6 meses",9000,4320),("TSM Tool","12 horas",2500,12),("AMT Tool","12 horas",2500,12),("TFM Tool","12 horas",2500,12),("Borneo","3 dias",4000,72)]
         for tool, plan, amount, hours in defaults:
             conn.execute("INSERT OR IGNORE INTO product_plans(tool,plan,amount_cents,duration_hours,active) VALUES(?,?,?,?,1)", (tool, plan, amount, hours))
@@ -534,14 +561,33 @@ def create_app(test_config: dict | None = None) -> Flask:
         if phone: history=db.execute("SELECT s.*,c.phone customer_phone FROM sales s JOIN customers c ON c.id=s.customer_id WHERE c.phone LIKE ? ORDER BY s.sold_on DESC,s.id DESC LIMIT 500",(f"%{phone}%",)).fetchall()
         return render_page("customers.html",customers=customers,history=history,search_phone=request.args.get("telefone",""))
 
+    @app.route("/admin/vencimentos/marcar-trocada/<int:pending_id>", methods=["POST"])
+    @admin_required
+    def mark_password_changed(pending_id):
+        require_csrf()
+        db = get_db()
+        db.execute(
+            "UPDATE password_change_pending SET changed=1, changed_at=? WHERE id=? AND changed=0",
+            (utcnow().isoformat(), pending_id),
+        )
+        db.commit()
+        audit("password_marked_changed", "password_change_pending", pending_id)
+        return redirect(url_for("expirations_page"))
+
     @app.route("/admin/vencimentos")
     @admin_required
     def expirations_page():
-        db=get_db(); now=utcnow().isoformat()
-        expired=db.execute("SELECT s.*,c.phone customer_phone FROM sales s LEFT JOIN customers c ON c.id=s.customer_id WHERE s.status='Pago' AND s.expires_at!='' AND s.expires_at<=? ORDER BY s.expires_at DESC",(now,)).fetchall()
-        grouped={}
-        for row in expired: grouped.setdefault(row['tool'],[]).append(row)
-        return render_page('expirations.html',expired=expired,grouped=grouped,now=now)
+        db = get_db()
+        expired = db.execute("""
+            SELECT id, tool, account_login, account_password, created_at, changed_at
+            FROM password_change_pending
+            WHERE changed=0
+            ORDER BY tool, account_login
+        """).fetchall()
+        grouped = {}
+        for row in expired:
+            grouped.setdefault(row["tool"], []).append(row)
+        return render_page("expirations.html", expired=expired, grouped=grouped)
 
     @app.route("/admin/catalogo", methods=["GET","POST"])
     @admin_required
@@ -623,4 +669,4 @@ app = create_app() if os.environ.get("ADMIN_USERNAME") and os.environ.get("ADMIN
 if __name__ == "__main__":
     if app is None:
         raise SystemExit("Configure ADMIN_USERNAME e ADMIN_PASSWORD. Consulte README.md.")
-    app.run(host="127.0.0.1", port=8000, debug=False)
+    app.run(host="0.0.0.0", port=8000, debug=False)

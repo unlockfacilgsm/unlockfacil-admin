@@ -10,3 +10,8 @@ instance/
 *.sqlite3-shm
 *.sqlite3-wal
 backups/
+
+# Backups locais e exportações com dados de clientes
+app.py.backup*
+expirations.html.backup*
+discord_export.txt
